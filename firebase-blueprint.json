@@ -1,0 +1,221 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Publicly scoped profile metadata for an authenticated user without PII.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["google", "facebook", "instagram"],
+          "maxLength": 20
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "provider", "createdAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Strictly owner-isolated PII record storing user email and phone.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "BookingRecord": {
+      "title": "BookingRecord",
+      "description": "Confirmed travel booking record owned strictly by an authenticated user.",
+      "type": "object",
+      "properties": {
+        "bookingCode": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "listingId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "listingTitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "listingSubtitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "enum": ["hotel", "flight", "train", "bus", "airport_transfer", "car_rental", "attraction"],
+          "maxLength": 32
+        },
+        "checkInOrDepartDate": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 20
+        },
+        "checkOutDate": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "nightsOrUnits": {
+          "type": "number"
+        },
+        "unitLabel": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 32
+        },
+        "scheduleInfo": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "contactFullName": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "contactPhone": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 25
+        },
+        "contactEmail": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "guestFullName": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "travelInsurance": {
+          "type": "boolean"
+        },
+        "specialRequestsSummary": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "paymentMethodId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "paymentMethodName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "paymentReference": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "totalAmount": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["LUNAS & TERKONFIRMASI", "DIBATALKAN"],
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "bookingCode",
+        "ownerId",
+        "listingId",
+        "listingTitle",
+        "listingSubtitle",
+        "category",
+        "checkInOrDepartDate",
+        "quantity",
+        "nightsOrUnits",
+        "unitLabel",
+        "scheduleInfo",
+        "contactFullName",
+        "contactPhone",
+        "contactEmail",
+        "guestFullName",
+        "travelInsurance",
+        "paymentMethodId",
+        "paymentMethodName",
+        "paymentReference",
+        "totalAmount",
+        "status",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Public profile record for authenticated user (non-PII)."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Owner-isolated private contact PII record (docId = 'info')."
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/BookingRecord" },
+      "description": "Confirmed travel bookings owned by the authenticated user."
+    }
+  }
+}

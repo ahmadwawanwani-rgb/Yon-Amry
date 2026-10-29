@@ -1,0 +1,237 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Blueprint Validator 1: UserPublicProfile (/users/{userId})
+    function isValidUserPublicProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'provider', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'provider', 'photoURL', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.provider is string && data.provider.size() <= 20
+        && data.provider in ['google', 'facebook', 'instagram']
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Blueprint Validator 2: UserPrivateInfo (/users/{userId}/private/{docId})
+    function isValidUserPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'phone', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 30))
+        && data.updatedAt is timestamp;
+    }
+
+    // Blueprint Validator 3: BookingRecord (/bookings/{bookingId})
+    function isValidBookingRecord(data, bookingId) {
+      return data.keys().hasAll([
+          'bookingCode',
+          'ownerId',
+          'listingId',
+          'listingTitle',
+          'listingSubtitle',
+          'category',
+          'checkInOrDepartDate',
+          'quantity',
+          'nightsOrUnits',
+          'unitLabel',
+          'scheduleInfo',
+          'contactFullName',
+          'contactPhone',
+          'contactEmail',
+          'guestFullName',
+          'travelInsurance',
+          'paymentMethodId',
+          'paymentMethodName',
+          'paymentReference',
+          'totalAmount',
+          'status',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'bookingCode',
+          'ownerId',
+          'listingId',
+          'listingTitle',
+          'listingSubtitle',
+          'category',
+          'checkInOrDepartDate',
+          'checkOutDate',
+          'quantity',
+          'nightsOrUnits',
+          'unitLabel',
+          'scheduleInfo',
+          'contactFullName',
+          'contactPhone',
+          'contactEmail',
+          'guestFullName',
+          'travelInsurance',
+          'specialRequestsSummary',
+          'paymentMethodId',
+          'paymentMethodName',
+          'paymentReference',
+          'totalAmount',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.bookingCode is string && data.bookingCode == bookingId
+        && data.bookingCode.size() >= 4 && data.bookingCode.size() <= 32
+        && data.bookingCode.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.listingId is string && data.listingId.size() >= 2 && data.listingId.size() <= 64
+        && data.listingId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.listingTitle is string && data.listingTitle.size() >= 2 && data.listingTitle.size() <= 160
+        && data.listingSubtitle is string && data.listingSubtitle.size() >= 2 && data.listingSubtitle.size() <= 200
+        && data.category is string && data.category.size() <= 32
+        && data.category in ['hotel', 'flight', 'train', 'bus', 'airport_transfer', 'car_rental', 'attraction']
+        && data.checkInOrDepartDate is string && data.checkInOrDepartDate.size() >= 8 && data.checkInOrDepartDate.size() <= 20
+        && (!('checkOutDate' in data) || (data.checkOutDate is string && data.checkOutDate.size() <= 20))
+        && data.quantity is int && data.quantity >= 1 && data.quantity <= 20
+        && data.nightsOrUnits is int && data.nightsOrUnits >= 1 && data.nightsOrUnits <= 60
+        && data.unitLabel is string && data.unitLabel.size() >= 2 && data.unitLabel.size() <= 32
+        && data.scheduleInfo is string && data.scheduleInfo.size() >= 2 && data.scheduleInfo.size() <= 160
+        && data.contactFullName is string && data.contactFullName.size() >= 3 && data.contactFullName.size() <= 100
+        && data.contactPhone is string && data.contactPhone.size() >= 8 && data.contactPhone.size() <= 25
+        && data.contactEmail is string && data.contactEmail.size() >= 5 && data.contactEmail.size() <= 160
+        && data.guestFullName is string && data.guestFullName.size() >= 3 && data.guestFullName.size() <= 100
+        && data.travelInsurance is bool
+        && (!('specialRequestsSummary' in data) || (data.specialRequestsSummary is string && data.specialRequestsSummary.size() <= 300))
+        && data.paymentMethodId is string && data.paymentMethodId.size() >= 2 && data.paymentMethodId.size() <= 40
+        && data.paymentMethodName is string && data.paymentMethodName.size() >= 2 && data.paymentMethodName.size() <= 80
+        && data.paymentReference is string && data.paymentReference.size() >= 4 && data.paymentReference.size() <= 64
+        && data.totalAmount is int && data.totalAmount >= 0 && data.totalAmount <= 500000000
+        && data.status is string && data.status.size() <= 40
+        && data.status in ['LUNAS & TERKONFIRMASI', 'DIBATALKAN']
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Collection 1: Public User Profile (Non-PII)
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isVerifiedUser()
+        && isOwner(userId)
+        && isValidId(userId)
+        && isValidUserPublicProfile(incoming(), userId)
+        && incoming().createdAt == request.time;
+
+      allow update: if isValidUserPublicProfile(incoming(), userId)
+        && isVerifiedUser()
+        && isOwner(userId)
+        && isValidId(userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'provider', 'updatedAt']);
+
+      allow delete: if false;
+
+      // Subcollection: Isolated Private PII (Master Gate enforced)
+      match /private/{docId} {
+        allow get: if isOwner(userId)
+          && isValidId(userId)
+          && docId == 'info'
+          && exists(/databases/$(database)/documents/users/$(userId));
+
+        allow list: if false;
+
+        allow create: if isVerifiedUser()
+          && isOwner(userId)
+          && isValidId(userId)
+          && docId == 'info'
+          && isValidUserPrivateInfo(incoming(), userId)
+          && incoming().updatedAt == request.time
+          && (
+            exists(/databases/$(database)/documents/users/$(userId))
+            || existsAfter(/databases/$(database)/documents/users/$(userId))
+          );
+
+        allow update: if isValidUserPrivateInfo(incoming(), userId)
+          && isVerifiedUser()
+          && isOwner(userId)
+          && isValidId(userId)
+          && docId == 'info'
+          && incoming().uid == existing().uid
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'updatedAt'])
+          && exists(/databases/$(database)/documents/users/$(userId));
+
+        allow delete: if false;
+      }
+    }
+
+    // Collection 2: Confirmed Travel Bookings
+    match /bookings/{bookingId} {
+      allow get: if isSignedIn()
+        && isValidId(bookingId)
+        && existing().ownerId == request.auth.uid;
+
+      // Pillar 8: Query Enforcer (no get()/exists() in list, strict resource.data check)
+      allow list: if isSignedIn()
+        && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(bookingId)
+        && isValidBookingRecord(incoming(), bookingId)
+        && incoming().status == 'LUNAS & TERKONFIRMASI'
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      // Action-Based Update with Terminal State Locking ('DIBATALKAN' is terminal)
+      allow update: if isValidBookingRecord(incoming(), bookingId)
+        && isVerifiedUser()
+        && isValidId(bookingId)
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().bookingCode == existing().bookingCode
+        && incoming().createdAt == existing().createdAt
+        && existing().status != 'DIBATALKAN'
+        && (
+          // Action: CancelBooking
+          (
+            incoming().status == 'DIBATALKAN'
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+
+      allow delete: if false;
+    }
+  }
+}
